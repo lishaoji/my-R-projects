@@ -1,0 +1,131 @@
+---
+title: "HW3 - Visualizing the diamonds data set"
+author:
+- Faustine Li
+- Eden Huang
+- Shaoji Li
+- Yumemichi Fujita
+output: 
+  html_document: 
+    highlight: pygments
+    theme: flatly
+---
+
+### Load the data
+
+```{r setup, include=FALSE}
+library(ggplot2)
+library(dplyr)
+data(diamonds)
+```
+
+
+### Data properties
+
+**1. Variable 1 -** 
+
+**Price** is an important quantity for diamond sellers and buyers alike. For a business they may be primarily interested how much. One challenge for the price is that the mean is very different than the median. In other words, price is not uniformily distributed, with some diamonds that are much more expensive than the others. Thus it might be hard to capture the full range of price with one visualization. 
+```{r}
+summary(diamonds$price)
+```
+
+**2. Variable 2 -** 
+
+**Color** is another important factor for both diamond buyers and salespeople. A customer would want to consider what color will satisfy him or her, given the size and shape diamond desired; while as a salesperson, color determines the popularity of diamonds, and thus determines what type of diamonds should him or her sell. Also, color is an important factor in deciding the price of a diamond. Different from price, colors are count data. And as we can see from the summary, there are far more diamonds with color G than diamonds with color J, so colors are not distributed evenly.
+```{r}
+summary(diamonds$carat)
+```
+
+
+**3. Variable 3 -** 
+
+Our third variable is **carat**. Carat is important because it measures the weight of diamonds. It is another important factor in determining the price. The distribution of carat has a wide span with the minimum of 0.2 and the maximum of 5.0. However, its mean and median are close to each other and both are smaller than 0.8. This means most diamonds in our dataset have small weight, but there are some outlier weights as well. So when we analyze the relationship among carat and other two variables, it is necessary to deal with the outliers.
+```{r}
+summary(diamonds$color)
+```
+
+
+### Charts
+
+#### Chart 1
+
+Linear Models of price over color, by color
+```{r}
+ggplot(diamonds, aes(x=carat, y=price, color=color)) + 
+    geom_point(alpha=0.02, color='#696969') +
+    geom_smooth(se=FALSE, method='lm') + 
+    ylim(1, 1.05 * max(diamonds$price)) +
+    xlim(0, 3.5) + 
+    labs(x='Carat', y='Price (USD)', title='Linear Fit for each Diamond Color') + 
+  theme_bw()
+```
+
+#### Chart 2
+
+Circle plots of diamond colors
+```{r}
+dia = diamonds %>%
+    select(carat, price, color) %>%
+    group_by(color) %>%
+    mutate(avg_price = mean(price)) %>%
+    mutate(avg_carat = mean(carat)) %>%
+    select(color, avg_price, avg_carat) %>%
+    ungroup() %>%
+    distinct()
+dia$count = count(diamonds, color)['n']
+
+# create the plot
+ggplot(dia, aes(x=avg_carat, y=avg_price, color=color)) + 
+  geom_point(aes(size=count)) + 
+  scale_size(range = c(3, 20)) + 
+  scale_colour_brewer(palette = "Set1") +
+  ylim(0.95*min(dia$avg_price), 1.05*max(dia$avg_price)) +
+  xlim(0.95*min(dia$avg_carat), 1.05*max(dia$avg_carat)) +
+  labs(x='Mean Carat', y='Mean Price (USD)', title='Mean Price by Size and Color') + 
+  theme_bw()
+```
+
+
+### Chart properties
+
+We chose two plots that displayed our three variables very differently. The first plot is a linear fit of price over carat, split by diamond color. It is easier to tell which colors of diamonds are more or less sensitive to size as a factor of the price. For example, we see that the poorer quality of diamond color has a worse price as carat increases, but for the top color diamonds they are very similar in terms of price movement. 
+
+The second plot we chose a circle plot that shows where each color catagory falls in terms of mean price and weight. In addition, the number of diamonds in each catagory is given by the size of the bubble. This plot is more discriptive of the average characteristics of each group of diamonds. For example, diamonds with color D are the best in color, but the mean price is driven down by their much smaller weight. In additon, D diamonds are very rare, being the smallest circle of the colors by far.
+
+In summary:
+
+**Linear fit**
+* x axis is weight in carat
+* y axis is price in dollars
+* lines represent linear fits between price and weight
+* colors represent color catagory
+* better for seeing trends of price over weight
+
+**Circle Plot**
+* x axis is mean weight in carat
+* y axis is mean price in dollars
+* colors represent each color catagory
+* size of circles represent count of each color
+* location of each circle represents each catagory mean carat and price
+* better for descripting characteristics of each color in the data set
+
+### Tasks
+
+Chart 1: 
+Users should be able to know all the historical buying data that is on the data frame from these plots, which are 53,940 buying data with the relations of carat and price. Also, there are linear models of each different colors from the plots, which enable users to know the relations between price and carat for each color. From the graph we can know that lighter color normally has steeper slope than darker colors, and there are less differences among light colors when compare with darker colors. For example, color D, E, F, G almost has the same trend, color H, I have similar slope, and color J is very different from the others. 
+The trend for each color and historical plots are very important for users to know both for buyers and sellers. Buyers needed to know if the diamond’s price is a good price when they decide to buy, so the historical plots will help them know if the price is ok to buy or not. For sellers, to know the trend of the carat and price relations for each diamonds colors are very important, since they can know what colors will make more profits. Also, by have all the historical plots, sellers can know which kind of diamonds are more popular so that they can produce more popular diamonds.
+
+Chart 2: 
+From chart 2, users can know the average of the price and carat relations. Except color D, other colors seem like on a positive slope. Also, from this graph, we can know the size of each color of diamond. And most importantly, it can helps to represent teh data in a simpl way.
+It is important to know the average means and carats and show the relations between them, because it is easy to see, and also not to be influenced by some of the individual cases(like outliers), and can represent the whole data. 
+
+### Design context
+
+For the first graph, we put "Price" on y axis and "carat" on x axis, with diffrent colors of diamonds plot on the graph. We only choose to put the colors on the regression lines for the diffrent colors of diamonds, instead of put all colors on th plots. Because when we tried to put all colors on the plots, it is very difficult to see the trends and colors. By seetting the alpha(transparency) very low, and set the plots color gray, it is easier to see the trend now. 
+For chart 2, instead of put all teh plots on, we choose to only put means and change the size by the number os counts. By doing this, it is easier and simpler to see teh data. we also change teh color of bubbles that are easier to notice the diffrences. The colors are also set to be in a similar tone, to avoid that one of them is very obivious than others.
+
+### User skills
+
+The type of audience can be sellers and buyers for the diamonds. teh skills they need is to understand the linear model, understand the basic knowledge about diamond color(such as lighter color is more rare and more expensive)
+the historical of teh plots are hard to understand sincs there is too many plots on one graph. So we made it a gray color, and instead of color all the plots, we coloe the linear models on teh plots that are easier to see.
+

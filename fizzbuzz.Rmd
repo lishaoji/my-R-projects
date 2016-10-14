@@ -1,0 +1,72 @@
+Homework 1 - Team 1
+========================================================
+
+### Task 1 - Implementation
+
+**Problem statement:**  
+
+> “Write a program that prints the numbers from 1 to 100, each on their own line. But for multiples of three print **Fizz** instead of the number and for the multiples of five print **Buzz**. For numbers which are multiples of both three and five print **FizzBuzz**."
+  
+  
+**Code write-up:**  
+Our function accepts as input a vector of integers, and prints a result that is consitent with the **FizzBuzz** rules. The procedures could be summarized as follows:
+
+1. **Check for the correct data type:**
+We first check the type of the input and print an error message if any element has a data type that is not supported. The first part of the code uses multiple and nested if- statements to check the type.
+  + We use ```is.numeric()``` to checks whether or not the input is numeric, either an integer or  double.
+    + However, NaN is a special case with data type double, and hence we need to use ```is.nan()``` to rule out the case. 
+    + Then we use ```is.infinite()``` to check whether all the elements in the input are finite. 
+  + We move on to check whether the elements in the are integers (in the mathematical sense). Note that a single integer value would be stored as ```double``` in R, while a sequence of integers, created by ```seq()``` or the colon operator, would be an integer type. For example, the ```typeof(3)``` is ```double```, while the ```typeof(3:5)``` is ```integer```. Therefore, we have to use  ```round()``` function and check for a remainder, instead of using ```is.integer()```. 
+   
+
+2. **Print out the correct values:**
+The second part uses multiple if- statements to check the inputs.
+  + We check if the number is a multiple of 15 first and then multiple of 3 or 5. We do this using the modulus operator ```%%```.
+  + We iterate over the elements in the input vector, and print the correct output as described by the **FizzBuzz** statement.   
+
+
+```{r}
+fizzbuzz = function(v) {
+  # checking for the correct data type
+  if (all(is.numeric(v))) {
+    if (any(is.nan(v))) {
+      return('Error: not a number')
+    } else if (any(is.infinite(v))) {
+      return('Error: infinite argument')
+    } else if (any(round(v) != v)) 
+      return('Error: not an integer')
+  } else {
+    return('Error: data type not supported')
+  }
+  # interate over vector v and print the correct value 
+  for (i in v) {
+    if (i %% 15 == 0) {
+      print('fizzbuzz')
+    } else if (i %% 3 == 0) {
+      print("fizz")
+    } else if (i %% 5 == 0) {
+      print("buzz")
+    } else {
+      print(i)
+    }
+  }
+}
+```
+
+### Task 2 - Validation
+```{r, error=TRUE}
+fizzbuzz(1)
+fizzbuzz(3)
+fizzbuzz(5)
+fizzbuzz(15)
+fizzbuzz(9:15)
+fizzbuzz(15:9)
+fizzbuzz(Inf)
+fizzbuzz("A")
+fizzbuzz(1.5)
+fizzbuzz(0)
+fizzbuzz(-3)
+fizzbuzz(NaN)
+fizzbuzz(c(1,2,3.5,4))
+fizzbuzz(c(1,2,'a',4))
+```

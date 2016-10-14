@@ -1,0 +1,280 @@
+---
+title: "Sta 323 - Midterm 1 - Spring 2016"
+output: rmarkdown::html_document
+---
+
+<br/><br/>
+
+### Rules
+
+1. Your solutions must be written up using this R Markdown (Rmd) file, this file must include your code and write up for each task.
+
+2. This exam is open book, open internet, closed other people. You may use *any* online or book based resource you would like, but you must include citations for any code that you use (directly or indirectly). You *may not* consult with anyone else about this exam other than the Professor or TAs for this course - this includes posting anything online.
+
+3. You have until 11 pm on Wednesday, October 12th to complete this exam and turn it in via your personal Github repo - late work will not be accepted. Technical difficulties are not an excuse for late work - do not wait until the last minute to commit / push.
+
+4. All of your answers must include a brief description / writeup of your approach. This includes both annotating / commenting your code *and* a separate written descriptions of all code / implementations. I should be able to suppress *all* code output in your document and still be able to read and make sense of your answers.
+
+5. You may only use `dplyr` and/or `ggplot2` (and their dependencies) for this assignment, your solutions may not use any other R packages.
+
+6. The most important goal is to write code that can accomplish the given tasks, note however that grading will be partially based on the quality of the code you write - elegant, efficient code will be rewarded and messy, slow code will be penalized.
+
+<br/>
+
+### Data
+
+For this assignment you will be working with a data from the 2015 Formula 1 season. The data was downloaded from ergast.com in the form of a single large JSON file which contains information on the results of all 19 races from the 2015 season. Your repo should contain both a prettified version of the original json file (`f1.json`) as well as an Rdata binary file (`f1.Rdata`) which can be read in using
+
+```{r}
+load(file="f1.Rdata")
+```
+
+The data is structured as a list of lists of lists of lists and so on, it is up to you to look at the data and figure out how it is structured and how best to get at the information you want. There is no need to create a tidy data frame of the entire data set, you are free to manipulate and encode the data in anyway you see fit.
+
+<br/>
+
+
+### Task 1
+
+Briefly describe the structure of the `f1` object, in particular you should address what information is contained in each level of the list of lists as well as comment on any interesting or unusual features of these data.
+
+#### Answer:  
+There are 9 levels in this data.
+'f1' is a list of length one, which contains a list, 'MRData', of length 7.
+'MRData' is a list of length 7, which contains 'xmlns', 'series', 'url', 'limit', 'offset', 'total' and 'RaceTable'. The first six components are character strings and the last one, 'RaceTable' is a list of length 2. 
+'RaceTable' is a list of length 2, which contains a character string, 'season', that indicates the year of the races and a list of length 19, 'Races'.
+Races is a list of length 19, and its ith component is also a list of length 8 that contains information of season 2015 round i (i = 1, 2, ..., 19).
+Within the ith component of 'Races', there are 6 character strings: 'season', 'round', 'url', 'raceName', 'date', and 'time', and 2 lists, which will be used extensively throughout the project, 'Circuit' and 'Results'.
+The first important list, 'Circuit', is a list of length 4 including 3 character strings, 'circuitId', 'url' and 'circuitName', and one sublist, "location", that contains the latitude, the longitude, the city and the country of that circuit.
+Another important sublist of 'Races' is 'Results', which is a sublist of the ith component of 'Races' (i = 1, ..., 19). Each object of 'Results' contains information of an f1 driver such as number, race position, points earned, driver's personal infomation (name, birthday and nationality), the constructor of his/her information, and the data of the driver's performance such as 'Time' and 'status' from each round of Grand Prix in 2015.
+  
+In conclusion, "Circuit" and "Results" under the list "Races" are the most important objects.
+
+### Task 2
+
+Using these data construct a table showing the World Drivers' Championship standings for this F1 season. This table should resemble the results available on Wikipedia https://en.wikipedia.org/wiki/2015_Formula_One_season#World_Drivers.27_Championship_standings. Your data frame should also have the same 21 columns, Driver name, finishing position for all 19 races and then their overall points total for the season. Failure to finish for any reason (did not start, did not finish, disqualified, etc.) should be coded as an `NA`. Race finishes and points total should all have an integer type. Your data frame should be sorted by points total, but you do not need to include any additional logic to handle ties.  
+
+
+#### Answer:  
+I Build the data frame with the following steps:  
+  
+1. Based on the structure of the large list, which is described in Task 1, I decide to pull out the data of all races in 2015 first. I use a variable, 'f1race_data' to store the information of all the races.  
+  
+2. I try to pull out the locations/countries of all races by using an "sapply" function, which loops through all sublists in 'f1race_data' and grabs the countries under the directory of "f1race_data[[i]]/Circuit/Location/country". Then I set the column names of my data frame to be ["Driver", country_names, "Points"].  
+  
+3. Get the names of all drivers. To do that, I search for drivers' names for each of the 19 races and then union all names. Note that the function 'union' gets rid of the duplicated names.
+  
+4. I started building my data frame, **'driver_standings'**, with columns representing positions of each of the 19 races and total points for each driver and rows representing drivers. I fill in the first column, which is drivers' names, with the names I get from step 3, fill the last column with 0s and set all other blocks to be "NA" initially.
+  
+5. Fill in the position of each driver for each race if they finish the race. I do this part by column, which means I get all positions of drivers for each race and then place the positions in corresponding blocks. What I do is, for each race, get the names and positions of drivers that finished with 'sapply'. I find the indexes of the drivers by names and put their positions to the corresponding blocks by using the indexes. For example, "	"Sebastian Vettel" wins the #1 position in Malaysia. Since he is the third person in the data frame, I set driver_standings$Malaysia[3] = 1.
+
+6. While I grab the position of each player for each race, I also grab the points earned for that particular driver in that race. I update the drivers' points every time I enter their positions for a race.
+
+7. I sorted the data frame in a decreasing sequence and rename the rows to make it look nicer.
+
+```{r}
+library(dplyr)
+# Get the data that relates to races
+f1race_data = f1$MRData$RaceTable$Races
+# Get the countries of each race
+f1race_countries = sapply(f1race_data, function(x) {
+  return (x$Circuit$Location$country)
+})
+# Set the column names
+col_names = c("Driver", f1race_countries, "Points")
+## Get all names for race i, iterate through 1 in 1:19, and then take the unique of all drivers' names
+driver_names = NULL
+for (i in 1:19) {
+  driver_names = union(driver_names, sapply(f1race_data[[i]]$Results, function(x) {
+    return (paste(x$Driver$givenName, x$Driver$familyName, sep = " "))
+  }))
+}
+# driver_names = unique(driver_names)
+
+# Create an empty data frame with rows representing each driver and columns representing each Grand Prix
+driver_standings = as.data.frame(matrix(rep(NA, length(col_names) * length(driver_names)), 
+                               nrow = length(driver_names), ncol = length(col_names)))
+colnames(driver_standings) = col_names
+
+# Fill in the 
+driver_standings$Driver = driver_names
+driver_standings$Points = as.integer(rep(0, length(driver_names)))
+
+for (i in 1: length(f1race_data)) {
+  # Find the names and positions of drivers that finish in that particular Grand Prix
+  drivers = sapply(f1race_data[[i]]$Results, function (x) {
+    if (!is.na(as.numeric(x$positionText))) {
+      return (paste(x$Driver$givenName, x$Driver$familyName))
+    }
+  })
+  drivers = unlist(drivers)
+  # Positions of drivers that finish
+  pos = sapply(f1race_data[[i]]$Results, function (x) {
+    if (!is.na(as.numeric(x$positionText))) {
+      return (as.integer(x$position))
+    }
+  })
+  pos = unlist(pos)
+  # Points earned of drivers that finish the race
+  point = sapply(f1race_data[[i]]$Results, function (x) {
+    if (!is.na(as.numeric(x$positionText))) {
+      return (as.integer(x$points))
+    }
+  })
+  point = unlist(point)
+  # Find the indexes of the drivers and fill in their positions according to the indexes
+  idx = sapply(drivers, function (x) {
+    return (which(x == driver_names))
+  })
+  driver_standings[idx, i+1] = pos
+  # Increase the total points
+  driver_standings[idx, ncol(driver_standings)] = 
+    driver_standings[idx, ncol(driver_standings)] +
+    point
+}
+# Sort the drivers in decreasing sequence
+driver_standings = driver_standings[order(driver_standings$Points, decreasing = T), ]
+# Rename the rows
+rownames(driver_standings) = 1:nrow(driver_standings)
+head(driver_standings)
+```
+
+
+### Task 3
+
+Using these data construct a table showing the World Constructors' Championship standings for this F1 season (https://en.wikipedia.org/wiki/2015_Formula_One_season#World_Constructors.27_Championship_standings). Your data frame does not need to report the individual race results this time only the team's name and their overall points total (only two columns).
+
+#### Answer:  
+1. As we now have drivers' names and points, the only thing we need to do is to match drivers to their teams/constructors. To do that, I match drivers' names and teams by making tuples like (name, constructor) and stack all the tuples into a list. Similar to what I did to find all drivers' names in Task 2, I use the 'union' function to get rid of duplicates.
+
+2. Then I get a list of size 22, with each component is a tuple consisting of a driver's name and his constructor. I unlist it and build it into a data frame with the first column to be the drivers' names and the second column to be the corresponding constructors. I name this data frame "driver_team".
+
+3. After that, I select the "Driver" and "Points" columns from "driver_standings" data frame from task 2. I build a new data frame "driver_score" with those two columns.
+
+4. I combine "driver_team" and "driver_score" according to drivers' names, making a new data frame called "driver_team_score". Then I select "Constructor" and "Points" columns from "driver_team_score", group by "Constructor" and sum up points within each group. Th final dataset is **"constructor_standing"**
+
+```{r}
+library(dplyr)
+constructors = NULL
+# Pair all drivers with their constructors
+for (i in 1:length(f1race_data)) {
+  cons = lapply(f1race_data[[i]]$Results, function (x) {
+    driver_name = paste(x$Driver$givenName, x$Driver$familyName)
+    constructor_name = x$Constructor$name
+    return (c(driver_name, constructor_name))
+  })
+  constructors = union(constructors,cons)
+}
+# Build a data frame with the first column to be names and the second column to be the
+# corresponding constructors
+driver_team = data.frame(matrix(unlist(constructors), 
+                                         nrow = length(constructors), 
+                                         byrow = T), stringsAsFactors = F)
+names(driver_team) = c("Driver", "Constructor")
+
+# Build a data frame with the first column to be names and the second column to be the
+# corresponding points earned in 2015
+driver_score = driver_standings %>% select(Driver, Points)
+
+# Conbime driver_team and driver_score according to drivers' names
+driver_team_score = merge(driver_team, driver_score, by = "Driver")
+
+# Group the drivers according to constructors and calculate the sum of points for each
+# constructor.
+constructor_standings = driver_team_score %>% 
+  select(Constructor, Points) %>%
+  group_by(Constructor) %>%
+  summarise(Total_Points = sum(Points)) %>%
+  arrange(desc(Total_Points))
+constructor_standings
+```
+
+### Task 4
+
+Create a visualization comparing the 10 teams that shows their *cumulative* points earned throughout the 2015 season. This plot should have cumulative points on the y-axis and race on the x-axis with team/constructor identified by color or some other aesthetic. 
+
+#### Answer:  
+Now that I have the position of each driver in each Grand Prix, I can build a new data frame where the [i,j] item in the data frame stores cumulative points of the ith driver after the jth race.
+
+To do that, I follow the next few steps:
+  
+1. Create a score table that maps position to points earned;
+  
+2. Create a data frame with the row representing races and columns representing drivers. Every block in the data frame stores points of the driver earned in that particular race;
+  
+3. Calculate the cumulative sum of points for each driver (each row);
+  
+4. Add teams name to each driver. Select all columns except "Driver", group by according to constructor and sum the points within each group;
+
+5. Create a new data frame so that ggplot can be used. The data frame has dimension 190 * 3 and has three columns: Constructor, Race and points.
+
+6. Use ggplot to visualize cumulative points of after each race for all 10 constructors.
+  
+
+```{r}
+# Create a score table that maps position to points earned
+score_table = data.frame(rank = 1:nrow(driver_standings),
+                         point = c(25, 18, 15, 12, 10, 8, 6, 4, 2, 1, 
+                                   rep(0, nrow(driver_standings) - 10)))
+
+## Create a data frame with the row representing races and columns representing drivers.
+## The [i,j] item in the data frame stores cumulative points of the ith driver after the jth race
+
+# Initialize the empty data frame
+row_num = nrow(driver_standings)
+col_num = ncol(driver_standings) - 1
+cumulative_points = as.data.frame(matrix(rep(NA, row_num*col_num), 
+                                         nrow = row_num, 
+                                         ncol = col_num))
+names(cumulative_points) = names(driver_standings)[-ncol(driver_standings)]
+
+# Fill in the drivers' names
+cumulative_points$Driver = driver_standings$Driver
+
+# Use the score table to fill in the points earned for each player after each race.
+# If the position is NA, then enter 0.
+for (i in 1:nrow(cumulative_points)) {
+  for (j in 2:ncol(cumulative_points)) {
+    if (is.na(driver_standings[i,j])) {
+      cumulative_points[i,j] = 0
+    } else {
+      position = driver_standings[i,j]
+      cumulative_points[i,j] = score_table$point[position]
+    }
+  }
+  # Calculate cumulative sums row by row to get cumulative points after for drivers 
+  # after each race
+  cumulative_points[i,-1] = cumsum(as.numeric(cumulative_points[i,-1]))
+}
+
+# Add teams name to each driver
+cumulative_points = merge(driver_team, cumulative_points, by = "Driver")
+
+# Select all columns except "Driver", group by according to constructor and 
+# sum the points within each group
+cumulative_points = cumulative_points %>% 
+  select(-Driver) %>%
+  group_by(Constructor) %>%
+  summarise_each(funs(sum))
+
+# Construct a new data frame so that ggplot can be utilized
+teams = rep(cumulative_points$Constructor, ncol(cumulative_points) - 1)
+# Set levels to make sure that the levels are not in alphabetic order
+races = factor(rep(names(cumulative_points)[-1], each = nrow(cumulative_points)), 
+               levels = names(cumulative_points)[-1])
+cumu_points = NULL
+for (n in names(cumulative_points)[-1]) {
+  points = as.numeric(cumulative_points[[n]])
+  cumu_points = c(cumu_points, points)
+}
+new_df = data_frame(Constructor = teams, Race = races, Points = cumu_points)
+
+# Visualization
+library(ggplot2)
+ggplot(new_df, aes(x = Race, y = Points, group = Constructor, color = Constructor)) + 
+  geom_line() +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  ggtitle("Cumulative Points Earned Throughout the Year of 2015")
+
+```
